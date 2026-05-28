@@ -29,23 +29,36 @@ class NvidiaEmbeddingClient:
             return None
         return OpenAI(api_key=api_key, base_url=self.settings.nvidia_base_url, timeout=12.0, max_retries=0)
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        return self._embed(texts, self.settings.nvidia_embed_model, self._text_client, "text")
+    def embed_texts(self, texts: list[str], input_type: str = "passage") -> list[list[float]]:
+        return self._embed(texts, self.settings.nvidia_embed_model, self._text_client, "text", input_type)
 
-    def embed_code_texts(self, texts: list[str]) -> list[list[float]]:
-        return self._embed(texts, self.settings.nvidia_embedcode_model, self._code_client, "code")
+    def embed_code_texts(self, texts: list[str], input_type: str = "passage") -> list[list[float]]:
+        return self._embed(texts, self.settings.nvidia_embedcode_model, self._code_client, "code", input_type)
 
     @retry(wait=wait_exponential(multiplier=1, min=1, max=2), stop=stop_after_attempt(1), reraise=True)
-    def _remote_embed(self, client: OpenAI, model: str, texts: list[str]) -> list[list[float]]:
-        response = client.embeddings.create(model=model, input=texts)
+    def _remote_embed(self, client: OpenAI, model: str, texts: list[str], input_type: str) -> list[list[float]]:
+        response = client.embeddings.create(
+            model=model,
+            input=texts,
+            extra_body={"input_type": input_type},
+        )
         return [item.embedding for item in response.data]
 
-    def _embed(self, texts: list[str], model: str, client: OpenAI | None, namespace: str) -> list[list[float]]:
+    def _embed(
+        self,
+        texts: list[str],
+        model: str,
+        client: OpenAI | None,
+        namespace: str,
+        input_type: str,
+    ) -> list[list[float]]:
+        if input_type not in {"passage", "query"}:
+            raise ValueError("NVIDIA embeddings require input_type to be 'passage' or 'query'.")
         if not texts:
             return []
         if client is not None:
             try:
-                return self._remote_embed(client, model, texts)
+                return self._remote_embed(client, model, texts, input_type)
             except Exception:
                 if not self.settings.enable_local_model_fallback:
                     raise

@@ -40,6 +40,22 @@ def rebuild_index(settings: Settings, orchestrator: RagOrchestrator) -> dict[str
     return build_index(settings, force=True, store=orchestrator.retriever.store)
 
 
+def render_startup_error_if_present(settings: Settings) -> None:
+    startup_error = settings.root_dir / "data" / "generated" / "startup_error.txt"
+    if not startup_error.exists():
+        return
+
+    st.error("Runtime index preparation failed.")
+    st.write(
+        "The server is online, but the vector index could not be built during startup. "
+        "Check the deployment logs and verify the NVIDIA model keys and endpoint settings."
+    )
+    details = startup_error.read_text(encoding="utf-8", errors="ignore")
+    with st.expander("Technical details"):
+        st.code(details[-6000:], language="text")
+    st.stop()
+
+
 def main() -> None:
     apply_enterprise_css()
     settings = get_settings()
@@ -61,6 +77,8 @@ def main() -> None:
         )
         st.stop()
 
+    render_startup_error_if_present(settings)
+
     orchestrator = get_orchestrator()
 
     with st.sidebar:
@@ -73,7 +91,13 @@ def main() -> None:
             st.success(f"Indexed {sum(counts.values())} chunks.")
 
         if "index_counts" not in st.session_state:
-            st.session_state["index_counts"] = ensure_index(settings, orchestrator)
+            try:
+                st.session_state["index_counts"] = ensure_index(settings, orchestrator)
+            except Exception as exc:
+                st.error("Vector index initialization failed.")
+                st.write("Verify the NVIDIA embedding keys and Render environment variables, then redeploy.")
+                st.code(f"{type(exc).__name__}: {exc}", language="text")
+                st.stop()
         counts = st.session_state["index_counts"]
         st.divider()
         st.metric("Text Collection", counts.get(settings.qdrant_text_collection, 0))

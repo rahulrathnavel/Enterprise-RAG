@@ -24,7 +24,7 @@ class EnterpriseRetriever:
             return []
 
         if any(source in source_types for source in ("pdf", "sql")):
-            vector = self.embeddings.embed_texts([query])[0]
+            vector = self.embeddings.embed_texts([query], input_type="query")[0]
             results.extend(
                 self.store.search(
                     collection=self.settings.qdrant_text_collection,
@@ -36,7 +36,7 @@ class EnterpriseRetriever:
             )
 
         if any(source in source_types for source in ("json_log", "sql")):
-            vector = self.embeddings.embed_code_texts([query])[0]
+            vector = self.embeddings.embed_code_texts([query], input_type="query")[0]
             results.extend(
                 self.store.search(
                     collection=self.settings.qdrant_code_collection,
