@@ -34,6 +34,9 @@ Copy `.env.example` to `.env` and set the NVIDIA API keys. The application reads
 docker compose up --build
 ```
 
+For cloud deployment, configure real API keys as platform environment variables.
+Never commit `.env`, `apis.txt`, or `apiss.txt`.
+
 ## Security Notes
 
 The LLM is never the authorization boundary. RBAC is enforced before retrieval through Qdrant metadata filters and before SQL execution through table allowlists, query validation, and forbidden keyword rejection.

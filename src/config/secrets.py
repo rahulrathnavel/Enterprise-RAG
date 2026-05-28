@@ -70,10 +70,17 @@ def parse_apis_file(root: Path) -> dict[str, str]:
 
 
 def load_secret_values(root: Path) -> dict[str, str]:
-    """Load secrets with strict precedence: environment, .env, local fallback."""
+    """Load secrets with strict precedence: environment, .env, optional local fallback.
+
+    Public deployments must use environment variables only. The local
+    `apis.txt`/`apiss.txt` parser is disabled unless `ALLOW_LOCAL_SECRET_FILE`
+    is explicitly set to a truthy value, which prevents accidental secret-file
+    usage inside cloud containers.
+    """
 
     load_dotenv(root / ".env")
-    fallback = parse_apis_file(root)
+    allow_local_file = os.getenv("ALLOW_LOCAL_SECRET_FILE", "").strip().lower() in {"1", "true", "yes", "on"}
+    fallback = parse_apis_file(root) if allow_local_file else {}
 
     names = {
         "NVIDIA_BASE_URL",

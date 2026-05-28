@@ -4,8 +4,19 @@ services:
     container_name: enterprise-rag-demo
     ports:
       - "8501:8501"
-    env_file:
-      - .env
+    environment:
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NVIDIA_QWEN_API_KEY: ${NVIDIA_QWEN_API_KEY:-}
+      NVIDIA_MISTRAL_API_KEY: ${NVIDIA_MISTRAL_API_KEY:-}
+      NVIDIA_EMBED_API_KEY: ${NVIDIA_EMBED_API_KEY:-}
+      NVIDIA_EMBEDCODE_API_KEY: ${NVIDIA_EMBEDCODE_API_KEY:-}
+      NVIDIA_RERANK_API_KEY: ${NVIDIA_RERANK_API_KEY:-}
+      NVIDIA_SAFETY_API_KEY: ${NVIDIA_SAFETY_API_KEY:-}
+      GLINER_PII_API_KEY: ${GLINER_PII_API_KEY:-}
+      ALLOW_LOCAL_SECRET_FILE: "false"
+      ENABLE_LOCAL_MODEL_FALLBACK: ${ENABLE_LOCAL_MODEL_FALLBACK:-false}
+      FORCE_LOCAL_MODEL_FALLBACK: ${FORCE_LOCAL_MODEL_FALLBACK:-false}
+      ENABLE_REMOTE_SAFETY: ${ENABLE_REMOTE_SAFETY:-false}
     volumes:
       - ./data:/app/data
     restart: unless-stopped

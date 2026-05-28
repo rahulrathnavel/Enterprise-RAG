@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.config.settings import Settings, load_settings
+from src.config.settings import Settings, load_settings, missing_required_secret_names
 from src.ingestion.index_builder import build_index, ensure_demo_data
 from src.rag.orchestrator import RagOrchestrator
 from src.security.rbac import Role
@@ -43,9 +43,25 @@ def rebuild_index(settings: Settings, orchestrator: RagOrchestrator) -> dict[str
 def main() -> None:
     apply_enterprise_css()
     settings = get_settings()
-    orchestrator = get_orchestrator()
 
     st.title("Enterprise RAG")
+
+    missing_secrets = missing_required_secret_names(settings)
+    if missing_secrets:
+        st.error("Deployment configuration is incomplete.")
+        st.write(
+            "The server is running, but model access is disabled because required "
+            "NVIDIA NIM environment variables are not configured."
+        )
+        st.code("\n".join(missing_secrets), language="text")
+        st.info(
+            "Set these values in your cloud provider's Environment Variables or "
+            "Secrets dashboard. Do not place API keys in GitHub, Dockerfile, README, "
+            ".env.example, or any committed file."
+        )
+        st.stop()
+
+    orchestrator = get_orchestrator()
 
     with st.sidebar:
         st.header("Session")

@@ -61,6 +61,28 @@ class Settings:
     embedding_dimension: int = 4096
 
 
+REQUIRED_SECRET_FIELDS: dict[str, str] = {
+    "NVIDIA_QWEN_API_KEY": "nvidia_qwen_api_key",
+    "NVIDIA_MISTRAL_API_KEY": "nvidia_mistral_api_key",
+    "NVIDIA_EMBED_API_KEY": "nvidia_embed_api_key",
+    "NVIDIA_EMBEDCODE_API_KEY": "nvidia_embedcode_api_key",
+    "NVIDIA_RERANK_API_KEY": "nvidia_rerank_api_key",
+}
+
+
+def missing_required_secret_names(settings: Settings) -> list[str]:
+    """Return missing runtime secrets without exposing configured values."""
+
+    missing = [
+        env_name
+        for env_name, field_name in REQUIRED_SECRET_FIELDS.items()
+        if not getattr(settings, field_name)
+    ]
+    if settings.enable_remote_safety and not settings.nvidia_safety_api_key:
+        missing.append("NVIDIA_SAFETY_API_KEY")
+    return missing
+
+
 def load_settings() -> Settings:
     """Resolve application configuration without exposing secret material."""
 
@@ -90,7 +112,7 @@ def load_settings() -> Settings:
         nvidia_rerank_api_key=secrets.get("NVIDIA_RERANK_API_KEY"),
         nvidia_safety_api_key=secrets.get("NVIDIA_SAFETY_API_KEY"),
         gliner_pii_api_key=secrets.get("GLINER_PII_API_KEY"),
-        enable_local_model_fallback=_bool("ENABLE_LOCAL_MODEL_FALLBACK", True),
+        enable_local_model_fallback=_bool("ENABLE_LOCAL_MODEL_FALLBACK", False),
         force_local_model_fallback=_bool("FORCE_LOCAL_MODEL_FALLBACK", False),
         enable_remote_safety=_bool("ENABLE_REMOTE_SAFETY", False),
         max_sql_rows=_int("MAX_SQL_ROWS", 100),
