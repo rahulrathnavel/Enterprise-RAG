@@ -1,0 +1,12 @@
+.env
+apis.txt
+apiss.txt
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.streamlit/secrets.toml
+data/generated/
+data/qdrant/
+data/raw/
+*.log
+Submission_RAG.zip

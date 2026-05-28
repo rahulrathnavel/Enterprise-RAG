@@ -1,0 +1,10 @@
+.env
+apis.txt
+apiss.txt
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.git/
+data/qdrant/
+data/generated/
+data/raw/
