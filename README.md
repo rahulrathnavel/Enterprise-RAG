@@ -68,3 +68,5 @@ Never commit `.env`, `apis.txt`, or `apiss.txt`.
 ## Security Notes
 
 The LLM is never the authorization boundary. RBAC is enforced before retrieval through Qdrant metadata filters and before SQL execution through table allowlists, query validation, and forbidden keyword rejection.
+
+LIVE Demo: https://enterprise-rag-01b7.onrender.com/
