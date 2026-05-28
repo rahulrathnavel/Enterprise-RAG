@@ -5,6 +5,7 @@ from collections import Counter
 import requests
 
 from src.config.settings import Settings
+from src.rag.errors import is_transient_model_error
 from src.rag.types import RetrievedChunk
 
 
@@ -21,9 +22,12 @@ class NvidiaReranker:
         if self.settings.nvidia_rerank_api_key and not self.settings.force_local_model_fallback:
             try:
                 return self._remote_rerank(query, chunks)[:top_n]
-            except Exception:
-                if not self.settings.enable_local_model_fallback:
+            except Exception as exc:
+                if not is_transient_model_error(exc) and not self.settings.enable_local_model_fallback:
                     raise
+                # Reranking is an ordering optimization, not the authorization
+                # boundary. On temporary NVIDIA capacity failures, keep the
+                # already-authorized chunks and rank them lexically.
         return self._lexical_rerank(query, chunks)[:top_n]
 
     def _remote_rerank(self, query: str, chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:

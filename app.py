@@ -4,6 +4,7 @@ import streamlit as st
 
 from src.config.settings import Settings, load_settings, missing_required_secret_names
 from src.ingestion.index_builder import build_index, ensure_demo_data
+from src.rag.errors import compact_model_error, is_transient_model_error
 from src.rag.orchestrator import RagOrchestrator
 from src.security.rbac import Role
 from src.ui.layout import render_response
@@ -115,12 +116,20 @@ def main() -> None:
             try:
                 response = orchestrator.run(query.strip(), role)
             except Exception as exc:
-                st.error("The query could not be completed.")
-                st.write(
-                    "A model provider or retrieval dependency returned an unexpected error. "
-                    "Please retry the query. If this persists, check the deployment logs."
-                )
-                st.code(f"{type(exc).__name__}: {str(exc)[:500]}", language="text")
+                if is_transient_model_error(exc):
+                    st.warning("The NVIDIA model endpoint is temporarily busy.")
+                    st.write(
+                        "The application is configured correctly, but the hosted model did not respond in time. "
+                        "Please retry the query in a moment."
+                    )
+                    st.code(compact_model_error(exc), language="text")
+                else:
+                    st.error("The query could not be completed.")
+                    st.write(
+                        "A model provider or retrieval dependency returned an unexpected error. "
+                        "Please retry the query. If this persists, check the deployment logs."
+                    )
+                    st.code(f"{type(exc).__name__}: {str(exc)[:500]}", language="text")
                 st.stop()
         render_response(response)
 

@@ -21,5 +21,7 @@ def is_transient_model_error(exc: Exception) -> bool:
         or "all workers are busy" in message
         or "service unavailable" in message
         or "timeout" in message
+        or "timed out" in message
+        or "readtimeout" in message
         or "temporarily unavailable" in message
     )

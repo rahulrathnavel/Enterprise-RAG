@@ -9,6 +9,7 @@ class BusyModelError(Exception):
 
 def test_transient_model_error_detection() -> None:
     assert is_transient_model_error(BusyModelError("All workers are busy"))
+    assert is_transient_model_error(Exception("Request timed out."))
 
 
 def test_router_degrades_to_rbac_safe_heuristic_on_capacity_error() -> None:

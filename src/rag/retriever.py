@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.config.settings import Settings
 from src.rag.embeddings import NvidiaEmbeddingClient
+from src.rag.errors import is_transient_model_error
 from src.rag.reranker import NvidiaReranker
 from src.rag.types import RetrievedChunk, RouteDecision
 from src.rag.vector_store import QdrantVectorStore
@@ -24,28 +25,36 @@ class EnterpriseRetriever:
             return []
 
         if any(source in source_types for source in ("pdf", "sql")):
-            vector = self.embeddings.embed_texts([query], input_type="query")[0]
-            results.extend(
-                self.store.search(
-                    collection=self.settings.qdrant_text_collection,
-                    query_vector=vector,
-                    role=role,
-                    source_types=[source for source in source_types if source in {"pdf", "sql"}],
-                    limit=self.settings.max_retrieval_results,
+            try:
+                vector = self.embeddings.embed_texts([query], input_type="query")[0]
+                results.extend(
+                    self.store.search(
+                        collection=self.settings.qdrant_text_collection,
+                        query_vector=vector,
+                        role=role,
+                        source_types=[source for source in source_types if source in {"pdf", "sql"}],
+                        limit=self.settings.max_retrieval_results,
+                    )
                 )
-            )
+            except Exception as exc:
+                if not is_transient_model_error(exc):
+                    raise
 
         if any(source in source_types for source in ("json_log", "sql")):
-            vector = self.embeddings.embed_code_texts([query], input_type="query")[0]
-            results.extend(
-                self.store.search(
-                    collection=self.settings.qdrant_code_collection,
-                    query_vector=vector,
-                    role=role,
-                    source_types=[source for source in source_types if source in {"json_log", "sql"}],
-                    limit=self.settings.max_retrieval_results,
+            try:
+                vector = self.embeddings.embed_code_texts([query], input_type="query")[0]
+                results.extend(
+                    self.store.search(
+                        collection=self.settings.qdrant_code_collection,
+                        query_vector=vector,
+                        role=role,
+                        source_types=[source for source in source_types if source in {"json_log", "sql"}],
+                        limit=self.settings.max_retrieval_results,
+                    )
                 )
-            )
+            except Exception as exc:
+                if not is_transient_model_error(exc):
+                    raise
 
         deduped = _dedupe(results)
         return self.reranker.rerank(query, deduped, self.settings.rerank_top_n)
