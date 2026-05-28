@@ -112,7 +112,16 @@ def main() -> None:
     submit = st.button("Run Query", type="primary")
     if submit and query.strip():
         with st.spinner("Running secure retrieval"):
-            response = orchestrator.run(query.strip(), role)
+            try:
+                response = orchestrator.run(query.strip(), role)
+            except Exception as exc:
+                st.error("The query could not be completed.")
+                st.write(
+                    "A model provider or retrieval dependency returned an unexpected error. "
+                    "Please retry the query. If this persists, check the deployment logs."
+                )
+                st.code(f"{type(exc).__name__}: {str(exc)[:500]}", language="text")
+                st.stop()
         render_response(response)
 
 

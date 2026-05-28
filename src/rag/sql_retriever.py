@@ -10,6 +10,7 @@ from sqlalchemy import inspect, text
 
 from src.config.settings import Settings
 from src.db.session import build_sqlite_engine
+from src.rag.errors import compact_model_error, is_transient_model_error
 from src.rag.types import SqlResult
 from src.security.rbac import Role, get_policy, parse_role
 
@@ -59,7 +60,18 @@ class DynamicSqlRetriever:
     def answer_sql(self, query: str, role: Role | str) -> SqlResult:
         normalized_role = parse_role(role) if isinstance(role, str) else role
         schema_prompt = self._schema_prompt(normalized_role)
-        generated = self._generate_sql(query, normalized_role, schema_prompt)
+        try:
+            generated = self._generate_sql(query, normalized_role, schema_prompt)
+        except Exception as exc:
+            if not is_transient_model_error(exc):
+                return SqlResult(
+                    sql="",
+                    columns=[],
+                    rows=[],
+                    blocked=True,
+                    reason=f"Qwen SQL generation failed: {compact_model_error(exc)}",
+                )
+            generated = self._fallback_sql(query, schema_prompt.allowed_tables)
         try:
             safe_sql = self._validate_and_limit_sql(generated, schema_prompt.allowed_tables)
             return self._execute(safe_sql)

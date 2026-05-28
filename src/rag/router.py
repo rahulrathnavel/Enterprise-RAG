@@ -6,6 +6,7 @@ import re
 from openai import OpenAI
 
 from src.config.settings import Settings
+from src.rag.errors import is_transient_model_error
 from src.rag.types import RouteDecision
 from src.security.rbac import Role, filter_route_for_role, get_policy, parse_role
 
@@ -25,13 +26,23 @@ class AgenticRouter:
 
     def route(self, query: str, role: Role | str) -> RouteDecision:
         normalized_role = parse_role(role) if isinstance(role, str) else role
-        requested = self._remote_route(query, normalized_role) if self.client else self._heuristic_route(query)
+        degraded = False
+        try:
+            requested = self._remote_route(query, normalized_role) if self.client else self._heuristic_route(query)
+        except Exception as exc:
+            if not is_transient_model_error(exc):
+                raise
+            requested = self._heuristic_route(query)
+            degraded = True
         allowed = filter_route_for_role(normalized_role, requested)
         denied = [source for source in requested if source not in allowed]
+        rationale = f"Requested={requested}; allowed={allowed}; role={normalized_role.value}"
+        if degraded:
+            rationale += "; Qwen router temporarily unavailable, used deterministic RBAC-safe route"
         return RouteDecision(
             source_types=allowed,
             requires_sql="sql" in allowed,
-            rationale=f"Requested={requested}; allowed={allowed}; role={normalized_role.value}",
+            rationale=rationale,
             denied_source_types=denied,
         )
 
@@ -62,8 +73,8 @@ class AgenticRouter:
             source_types = parsed.get("source_types", [])
             if isinstance(source_types, list):
                 return [source for source in source_types if source in self.VALID_SOURCE_TYPES]
-        except Exception:
-            if not self.settings.enable_local_model_fallback:
+        except Exception as exc:
+            if not self.settings.enable_local_model_fallback or not is_transient_model_error(exc):
                 raise
         return self._heuristic_route(query)
 

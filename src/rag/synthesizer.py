@@ -5,6 +5,7 @@ import json
 from openai import OpenAI
 
 from src.config.settings import Settings
+from src.rag.errors import compact_model_error, is_transient_model_error
 from src.rag.types import RetrievedChunk, SqlResult
 from src.security.guardrails import output_guardrail
 from src.security.rbac import Role, parse_role
@@ -37,9 +38,15 @@ class MistralSynthesizer:
             try:
                 answer = self._remote_synthesis(query, normalized_role, context)
                 return output_guardrail(answer)
-            except Exception:
-                if not self.settings.enable_local_model_fallback:
+            except Exception as exc:
+                if not is_transient_model_error(exc) and not self.settings.enable_local_model_fallback:
                     raise
+                if not self.settings.enable_local_model_fallback:
+                    return output_guardrail(
+                        "The NVIDIA synthesis endpoint is temporarily busy. "
+                        "Authorized context was retrieved successfully, but final generation could not complete. "
+                        f"Please retry in a moment. Provider detail: {compact_model_error(exc)}"
+                    )
         return output_guardrail(_fallback_synthesis(context))
 
     def _remote_synthesis(self, query: str, role: Role, context: str) -> str:
